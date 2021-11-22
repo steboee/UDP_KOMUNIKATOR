@@ -41,17 +41,35 @@ def client(client_socket, server_address):
             ini_msg = ini_msg.encode('utf-8').strip()
             client_socket.sendto(ini_msg, server_address)
 
-            poradie = 1
+            poradie = 0
+            message_to_send = msg[:fragment]
+            message_to_send = str.encode(message_to_send)
+            hlavicka = struct.pack("c", str.encode("1")) + struct.pack("HH", len(msg), poradie)
+            crc = 156
+            hlavicka = struct.pack("c", str.encode("1")) + struct.pack("HHH", len(msg), poradie, crc)
+            client_socket.sendto(hlavicka + message_to_send, server_address)
+
+            data, address = client_socket.recvfrom(1000)
+            data = data.decode()
+            message = msg[fragment:]
+
+            poradie = poradie + 1
             while True :
-                message = msg[:fragment]
+                message_to_send = message[:fragment]
+                message = message[fragment:]
+                message_to_send = str.encode(message_to_send)
                 hlavicka = struct.pack("c", str.encode("1")) + struct.pack("HH", len(msg), poradie)
-                crc = binascii.crc_hqx(hlavicka + message, 0)
-                hlavicka = struct.pack("c",str.encode("1")) + struct.pack("HHH",len(msg),poradie,crc)
-                client_socket.sendto(hlavicka + message, server_address)
+                crc = 156
+                hlavicka = struct.pack("c", str.encode("1")) + struct.pack("HHH", len(msg), poradie, crc)
+                client_socket.sendto(hlavicka + message_to_send, server_address)
+
                 data, address = client_socket.recvfrom(1000)
                 data = data.decode()
 
                 poradie = poradie + 1
+                if (poradie == int(number_of_packets)):
+                    break
+
 
         elif choice == "2":
             print("Správa na poslanie: ")
@@ -77,7 +95,6 @@ def server(server_socket, client_address):
         elif choice == "2":
             print("\nServer je pripravený prijmať dáta\n")
 
-
             while True:
 
                 data = server_socket.recv(1500)
@@ -89,22 +106,37 @@ def server(server_socket, client_address):
 
                     pocet = data[1:]  # pocet packetov ktoré prídu
 
-
                     print("Prichádzajúca správa pozostáva z " + str(pocet) + " packetov ")
 
                     num_of_packets_recv = 0
+                    full_message = []
                     while True:
-                        if (num_of_packets_recv == pocet):
+                        if (num_of_packets_recv == int(pocet)):
                             print("FINITO")
-                            break;
+                            print(full_message)
+                            full = ""
+                            for frag in full_message:
+                                full= full + frag
+                            print(str(full))
+                            print("Message:", ''.join(full_message))
+                            break
+
                         data, address = server_socket.recvfrom(64965)
-                        error = struct.unpack("c", data[0])
-                        if (error == "1"):
-                            print("DATA OK")
-                        else:
-                            print("Data Problem")
+
+                        num_of_packets_recv = num_of_packets_recv + 1
                         recv_message = data[7:]
-                        recv_header = data[:7]
+                        full_message.append(recv_message.decode())
+                        print(f"Packet number {num_of_packets_recv} was accepted")
+
+                        msg = "ok"
+                        msg = msg.encode()
+                        server_socket.sendto(msg,client_address)
+                    break
+
+
+
+
+
 
 
         else:
