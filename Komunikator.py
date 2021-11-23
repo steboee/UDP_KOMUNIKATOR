@@ -1,5 +1,6 @@
 import binascii
 import math
+import random
 import socket
 import struct
 import threading
@@ -20,7 +21,6 @@ def xor(a, b):
             result.append('1')
 
     return ''.join(result)
-
 
 def mod2div(divident, divisor):
     pick = len(divisor)
@@ -43,21 +43,12 @@ def mod2div(divident, divisor):
     checkword = tmp
     return checkword
 
-
-
 def decodeData(data, key):
     l_key = len(key)
 
     appended_data = data.decode() + '0' * (l_key - 1)
     remainder = mod2div(appended_data, key)
     return remainder
-
-
-
-
-
-
-
 
 
 
@@ -83,6 +74,13 @@ def client(client_socket, server_address):
                 print("Maximum is 64965 B")
                 print("Veľkosť fragmentu: ")
                 fragment = int(input())
+            print("% šanca na poškodený packet : (1% -> 100%(neodporúča sa :D) ")
+            error = int(input())
+
+            odds = [0]*100
+            for i in range(error):
+                odds[i] = 1
+            random.shuffle(odds)
 
             number_of_packets = math.ceil(len(msg) / fragment)
             print(number_of_packets,end="")
@@ -92,33 +90,52 @@ def client(client_socket, server_address):
             ini_msg = ini_msg.encode('utf-8').strip()
             client_socket.sendto(ini_msg, server_address)
 
-            poradie = 0
+            poradie = 1
             message_to_send = msg[:fragment]
             message_to_send = str.encode(message_to_send)
-            hlavicka = struct.pack("c", str.encode("1")) + struct.pack("HH", len(msg), poradie)
-            crc = 156
-            hlavicka = struct.pack("c", str.encode("1")) + struct.pack("HHH", len(msg), poradie, crc)
+            message = msg[fragment:]
+            checksum = binascii.crc_hqx(message_to_send,0)
+            choiuce = random.choice(odds)
+            if choiuce == 1:
+                checksum = checksum + random.randint(10,50)
+
+            hlavicka = struct.pack("c", str.encode("1")) + struct.pack("HHH", len(msg), poradie, checksum)
             client_socket.sendto(hlavicka + message_to_send, server_address)
 
             data, address = client_socket.recvfrom(1000)
-            data = data.decode()
-            message = msg[fragment:]
-
-            poradie = poradie + 1
-            while True :
+            typ,length,smt,smt2 = struct.unpack("cHHH", data)
+            typ = typ.decode()
+            if typ == "2":
+                message_to_send = msg[:fragment]
+            elif typ == "3":
                 message_to_send = message[:fragment]
-                message = message[fragment:]
+                message =message[fragment:]
+                poradie = poradie + 1
+
+
+
+            while True :
                 message_to_send = str.encode(message_to_send)
-                hlavicka = struct.pack("c", str.encode("1")) + struct.pack("HH", len(msg), poradie)
-                crc = 156
-                hlavicka = struct.pack("c", str.encode("1")) + struct.pack("HHH", len(msg), poradie, crc)
+                checksum = binascii.crc_hqx(message_to_send,0)
+
+                choiuce = random.choice(odds)
+                if choiuce == 1:
+                    checksum = checksum + random.randint(10, 50)
+
+                hlavicka = struct.pack("c", str.encode("1")) + struct.pack("HHH", len(msg), poradie, checksum)
                 client_socket.sendto(hlavicka + message_to_send, server_address)
 
                 data, address = client_socket.recvfrom(1000)
-                data = data.decode()
+                typ, length, smt, smt2 = struct.unpack("cHHH", data)
+                typ = typ.decode()
+                if typ =="2":           #poŠkodená
+                    message_to_send = message_to_send.decode()
+                elif typ == "3":
+                    message_to_send = message[:fragment]
+                    message = message[fragment:]
+                    poradie = poradie + 1
 
-                poradie = poradie + 1
-                if (poradie == int(number_of_packets)):
+                if (poradie-1 == int(number_of_packets)):
                     break
 
 
@@ -174,14 +191,26 @@ def server(server_socket, client_address):
 
                         data, address = server_socket.recvfrom(64965)
 
-                        num_of_packets_recv = num_of_packets_recv + 1
-                        recv_message = data[7:]
-                        full_message.append(recv_message.decode())
-                        print(f"Packet number {num_of_packets_recv} was accepted")
 
-                        msg = "ok"
-                        msg = msg.encode()
-                        server_socket.sendto(msg,client_address)
+                        recv_message = data[7:]
+                        lenght, poradie, checksum = struct.unpack("HHH",data[1:7])
+                        real_checksum_of_recv_data = binascii.crc_hqx(recv_message,0)
+                        if (real_checksum_of_recv_data == checksum):
+                            full_message.append(recv_message.decode())
+                            print(f"Packet number {poradie} was accepted")
+                            num_of_packets_recv = num_of_packets_recv + 1
+                            hlavicka = struct.pack("c", str.encode("3")) + struct.pack("HHH", len(recv_message), poradie, real_checksum_of_recv_data)
+                            message_to_send = " "
+                            message_to_send = message_to_send.encode()
+                            server_socket.sendto(hlavicka + message_to_send, client_address)
+
+                        else:
+                            print(f"Packet number {poradie} wasn't  accepted | Try Again")
+                            hlavicka = struct.pack("c", str.encode("2")) + struct.pack("HHH", len(recv_message), poradie, real_checksum_of_recv_data)
+                            message_to_send = " "
+                            message_to_send = message_to_send.encode()
+                            server_socket.sendto(hlavicka + message_to_send, client_address)
+
                     break
 
 
