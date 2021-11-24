@@ -1,5 +1,6 @@
 import binascii
 import math
+import os.path
 import random
 import socket
 import struct
@@ -7,8 +8,33 @@ import threading
 import time
 
 
+
+
 def switch():
     pass
+
+
+
+def udrzuj(client_socket,server_address):
+
+    while True:
+        t = time.time()
+        while True :
+            if (time.time() - t > 10):
+                print(THREAD)
+                if THREAD == False:
+                    break
+                if THREAD == True:
+                    client_socket.sendto(str.encode("4"),server_address)
+                    print("KEEP ALIVE SENT")
+                    t = time.time()
+            else:
+                if THREAD == False:
+                    break
+        break
+
+
+    return
 
 
 def xor(a, b):
@@ -53,17 +79,28 @@ def decodeData(data, key):
 
 
 def client(client_socket, server_address):
-    while True:
+    global THREAD
 
+
+    while True:
+        THREAD = True
+        thread = None
+        thread = threading.Thread(target=udrzuj, args=(client_socket, server_address))
+        thread.daemon = False
+        thread.start()
         print("0 for exit")
         print("1 for text message")
         print("2 for file message")
         choice = input()
 
         if choice == "0":
+            THREAD = False
             exit()
 
         elif choice == "1":
+            THREAD = False
+
+
             print("Správa na poslanie: ")
             msg = input()
 
@@ -101,21 +138,104 @@ def client(client_socket, server_address):
 
             hlavicka = struct.pack("c", str.encode("1")) + struct.pack("HHH", len(msg), poradie, checksum)
             client_socket.sendto(hlavicka + message_to_send, server_address)
+            if number_of_packets > 1 :
+
+                data, address = client_socket.recvfrom(1000)
+                typ,length,smt,smt2 = struct.unpack("cHHH", data)
+                typ = typ.decode()
+                if typ == "2":
+                    message_to_send = msg[:fragment]
+                elif typ == "3":
+                    message_to_send = message[:fragment]
+                    message =message[fragment:]
+                    poradie = poradie + 1
+
+
+
+
+
+                while True :
+                    message_to_send = str.encode(message_to_send)
+                    checksum = binascii.crc_hqx(message_to_send,0)
+
+                    choiuce = random.choice(odds)
+                    if choiuce == 1:
+                        checksum = checksum + random.randint(10, 50)
+
+                    hlavicka = struct.pack("c", str.encode("1")) + struct.pack("HHH", len(msg), poradie, checksum)
+                    client_socket.sendto(hlavicka + message_to_send, server_address)
+
+                    data, address = client_socket.recvfrom(1000)
+                    typ, length, smt, smt2 = struct.unpack("cHHH", data)
+                    typ = typ.decode()
+                    if typ =="2":           #poŠkodená
+                        message_to_send = message_to_send.decode()
+                    elif typ == "3":
+                        message_to_send = message[:fragment]
+                        message = message[fragment:]
+                        poradie = poradie + 1
+
+                    if (poradie-1 == int(number_of_packets)):
+                        break
+
+
+        elif choice == "2":
+            THREAD = False
+
+            print("Obrázok na poslanie: ")
+            image = "image_to_send.jpg"
+            size = os.path.getsize(image)
+            print("Veľkosť súboru je " + str(size) + " B")
+            print("Veľkosť fragmentu: ")
+            fragment = 1000
+
+            while fragment > 1472 or fragment <= 0:
+                print("Maximum is 1472 B")
+                print("Veľkosť fragmentu: ")
+                fragment = int(input())
+            print("% šanca na poškodený packet : (1% -> 100%(neodporúča sa :D) ")
+            error = int(input())
+
+            odds = [0] * 100
+            for i in range(error):
+                odds[i] = 1
+            random.shuffle(odds)
+
+            number_of_packets = math.ceil(size / fragment)
+            print(number_of_packets, end="")
+            print(" packetov bude odoslaných ")
+
+            ini_msg = ("1" + str(number_of_packets))  # inicializačná správa
+            ini_msg = ini_msg.encode('utf-8').strip()
+            client_socket.sendto(ini_msg, server_address)
+
+            poradie = 1
+
+            file = open(image, "rb")
+            msg = file.read()
+
+            message_to_send = msg[:fragment]
+            message_to_send = message_to_send
+            message = msg[fragment:]
+            checksum = binascii.crc_hqx(message_to_send, 0)
+            choiuce = random.choice(odds)
+            if choiuce == 1:
+                checksum = checksum + random.randint(10, 50)
+
+            hlavicka = struct.pack("c", str.encode("1")) + struct.pack("HHH", len(message_to_send), poradie, checksum)
+            client_socket.sendto(hlavicka + message_to_send, server_address)
 
             data, address = client_socket.recvfrom(1000)
-            typ,length,smt,smt2 = struct.unpack("cHHH", data)
+            typ, length, smt, smt2 = struct.unpack("cHHH", data)
             typ = typ.decode()
             if typ == "2":
                 message_to_send = msg[:fragment]
             elif typ == "3":
                 message_to_send = message[:fragment]
-                message =message[fragment:]
+                message = message[fragment:]
                 poradie = poradie + 1
 
-
-
             while True :
-                message_to_send = str.encode(message_to_send)
                 checksum = binascii.crc_hqx(message_to_send,0)
 
                 choiuce = random.choice(odds)
@@ -139,21 +259,16 @@ def client(client_socket, server_address):
                     break
 
 
-        elif choice == "2":
-            print("Správa na poslanie: ")
-            msg = input()
-            bytesToSend = str.encode(msg)
-            client_socket.sendto(bytesToSend, server_address)
-            print("SENT MSG : " + msg + " to Client-1")
 
 
 def server(server_socket, client_address):
-    while True:
-        print("0 - exit")
-        print("1 - switch")
-        print("2 - pokračuj ďalej (klient bude posielať dáta)")
-        choice = input()
 
+    print("0 - exit")
+    print("1 - switch")
+    print("2 - pokračuj ")
+    choice = "2"
+
+    while True:
         if choice == "0":
             exit()
 
@@ -171,7 +286,6 @@ def server(server_socket, client_address):
                 type = data[:1]  # typ správy ktorú server bude prijmať
 
                 if type == "1":
-
                     pocet = data[1:]  # pocet packetov ktoré prídu
 
                     print("Prichádzajúca správa pozostáva z " + str(pocet) + " packetov ")
@@ -189,8 +303,8 @@ def server(server_socket, client_address):
                             print("Message:", ''.join(full_message))
                             break
 
-                        data, address = server_socket.recvfrom(64965)
 
+                        data, address = server_socket.recvfrom(64965)
 
                         recv_message = data[7:]
                         lenght, poradie, checksum = struct.unpack("HHH",data[1:7])
@@ -211,8 +325,55 @@ def server(server_socket, client_address):
                             message_to_send = message_to_send.encode()
                             server_socket.sendto(hlavicka + message_to_send, client_address)
 
+
+                elif type == "2" :
+                    pocet = data[1:]  # pocet packetov ktoré prídu
+
+                    print("Prichádzajúci súbor pozostáva z " + str(pocet) + " packetov ")
+
+                    num_of_packets_recv = 0
+                    full_message = []
+                    while True:
+                        if (num_of_packets_recv == int(pocet)):
+                            file_name = "image_recieved.jpg"
+                            file = open(file_name, "wb")
+
+                            for frag in full_message:
+                                file.write(frag)
+                            file.close()
+                            size = os.path.getsize(file_name)
+                            print("Name:", file_name, "Size:", size, "B")
+                            print("Absolute path:", os.path.abspath(file_name))
+
+
+                        data, address = server_socket.recvfrom(64965)
+
+                        recv_message = data[7:]
+                        lenght, poradie, checksum = struct.unpack("HHH", data[1:7])
+                        real_checksum_of_recv_data = binascii.crc_hqx(recv_message, 0)
+                        if (real_checksum_of_recv_data == checksum):
+                            full_message.append(recv_message.decode())
+                            print(f"Packet number {poradie} was accepted")
+                            num_of_packets_recv = num_of_packets_recv + 1
+                            hlavicka = struct.pack("c", str.encode("3")) + struct.pack("HHH", len(recv_message), poradie, real_checksum_of_recv_data)
+                            message_to_send = " "
+                            message_to_send = message_to_send.encode()
+                            server_socket.sendto(hlavicka + message_to_send, client_address)
+
+                        else:
+                            print(f"Packet number {poradie} wasn't  accepted | Try Again")
+                            hlavicka = struct.pack("c", str.encode("2")) + struct.pack("HHH", len(recv_message), poradie, real_checksum_of_recv_data)
+                            message_to_send = " "
+                            message_to_send = message_to_send.encode()
+                            server_socket.sendto(hlavicka + message_to_send, client_address)
+
                     break
 
+
+                elif type =="4":
+                    server_socket.settimeout(60)
+                    print("KEEP ALIVE PACKET WAS ACCEPTED")
+                    break
 
 
 
@@ -221,6 +382,8 @@ def server(server_socket, client_address):
 
         else:
             print("\nZadal si neplatnú možnosť !!!!\n")
+
+
 
 
 def client_start():
@@ -235,13 +398,15 @@ def client_start():
         port = input()
 
         server_address = (address, int(port))
-        client_socket.sendto(str.encode("OK"), server_address)
-        client_socket.settimeout(60)
-        data, address = client_socket.recvfrom(1500)
-        data = data.decode()
-        if data == "OK":
-            print("Pripojené k :", server_address)
-            client(client_socket, server_address)
+        while True :
+            client_socket.sendto(str.encode("OK"), server_address)
+            client_socket.settimeout(60)
+            data, address = client_socket.recvfrom(1500)
+            data = data.decode()
+            if data == "OK":
+                print("Pripojené k :", server_address)
+                client(client_socket, server_address)
+
 
 
 def server_start():
