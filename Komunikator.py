@@ -10,22 +10,38 @@ import time
 
 
 
-def switch():
-    pass
-
-
-
 def udrzuj(client_socket,server_address):
 
     while True:
-        t = time.time()
+        if THREAD == True:
+            msg = "Keeping alive server"
+            message_to_send = str.encode(msg)
+            poradie = 0
+            hlavicka = struct.pack("c", str.encode("2")) + struct.pack("HH", len(msg), poradie)
+            check = hlavicka + message_to_send
+            checksum = binascii.crc_hqx(check, 0)
+            hlavicka = struct.pack("c", str.encode("2")) + struct.pack("HHH", len(msg), poradie, checksum)
+            client_socket.sendto(hlavicka + message_to_send, server_address)
+
+            print("KEEP ALIVE SENT")
+            t = time.time()
+        else:
+            break
+
         while True :
             if (time.time() - t > 10):
-                print(THREAD)
                 if THREAD == False:
                     break
                 if THREAD == True:
-                    client_socket.sendto(str.encode("4"),server_address)
+                    msg = "Keeping alive server"
+                    message_to_send = str.encode(msg)
+                    poradie = 0
+                    hlavicka = struct.pack("c", str.encode("2")) + struct.pack("HH", len(msg), poradie)
+                    check = hlavicka+message_to_send
+                    checksum = binascii.crc_hqx(check,0)
+                    hlavicka = struct.pack("c", str.encode("2")) + struct.pack("HHH", len(msg), poradie, checksum)
+                    client_socket.sendto(hlavicka + message_to_send, server_address)
+
                     print("KEEP ALIVE SENT")
                     t = time.time()
             else:
@@ -37,69 +53,38 @@ def udrzuj(client_socket,server_address):
     return
 
 
-def xor(a, b):
-    result = []
-
-    for i in range(1, len(b)):
-        if a[i] == b[i]:
-            result.append('0')
-        else:
-            result.append('1')
-
-    return ''.join(result)
-
-def mod2div(divident, divisor):
-    pick = len(divisor)
-    tmp = divident[0: pick]
-    while pick < len(divident):
-
-        if tmp[0] == '1':
-
-            tmp = xor(divisor, tmp) + divident[pick]
-
-        else:
-            tmp = xor('0' * pick, tmp) + divident[pick]
-
-        pick += 1
-
-    if tmp[0] == '1':
-        tmp = xor(divisor, tmp)
-    else:
-        tmp = xor('0' * pick, tmp)
-    checkword = tmp
-    return checkword
-
-def decodeData(data, key):
-    l_key = len(key)
-
-    appended_data = data.decode() + '0' * (l_key - 1)
-    remainder = mod2div(appended_data, key)
-    return remainder
-
 
 
 def client(client_socket, server_address):
     global THREAD
 
-
     while True:
-        THREAD = True
-        thread = None
-        thread = threading.Thread(target=udrzuj, args=(client_socket, server_address))
-        thread.daemon = False
-        thread.start()
+
         print("0 for exit")
         print("1 for text message")
         print("2 for file message")
+        print("3 for Keep alive ON")
+        print("4 for Keep alive OFF")
         choice = input()
 
         if choice == "0":
             THREAD = False
             exit()
 
-        elif choice == "1":
+        elif choice == "3":
+            THREAD = True
+            thread = None
+            thread = threading.Thread(target=udrzuj, args=(client_socket, server_address))
+            thread.daemon = False
+            thread.start()
+
+        elif choice == "4":
             THREAD = False
 
+
+
+        elif choice == "1":
+            THREAD = False
 
             print("Správa na poslanie: ")
             msg = input()
@@ -123,29 +108,76 @@ def client(client_socket, server_address):
             print(number_of_packets,end="")
             print(" packetov bude odoslaných ")
 
-            ini_msg = ("1" + str(number_of_packets))   # inicializačná správa
-            ini_msg = ini_msg.encode('utf-8').strip()
-            client_socket.sendto(ini_msg, server_address)
+            ini_msg = "Initialization packet"
+            message_to_send = str.encode(ini_msg)
+            pocet = number_of_packets
+            hlavicka = struct.pack("c", str.encode("3")) + struct.pack("HH", len(ini_msg), pocet)
+            check = hlavicka + message_to_send
+            checksum = binascii.crc_hqx(check, 0)
+            x = random.randint(1, 2)
+            if x == 1:
+                checksum = checksum + 1
+            hlavicka = struct.pack("c", str.encode("3")) + struct.pack("HHH", len(ini_msg), pocet, checksum)
+            client_socket.sendto(hlavicka + message_to_send, server_address)
+
+            while True:
+                data = client_socket.recv(1500)
+                type = data[:1]
+                length, poradie, checksum = struct.unpack("HHH", data[1:7])
+                type = type.decode()
+                msg_rcv = data[7:]
+                msg_rcv = msg_rcv.decode()
+                message_to_send = str.encode(msg_rcv)
+                hlavicka = struct.pack("c", str.encode(type)) + struct.pack("HH", len(msg_rcv), poradie)
+                check = hlavicka + message_to_send
+                real_checksum = binascii.crc_hqx(check, 0)
+                if real_checksum != checksum:
+                    ini_msg = "Initialization packet"
+                    message_to_send = str.encode(ini_msg)
+                    pocet = number_of_packets
+                    hlavicka = struct.pack("c", str.encode("3")) + struct.pack("HH", len(ini_msg), pocet)
+                    check = hlavicka + message_to_send
+                    checksum = binascii.crc_hqx(check, 0)
+                    hlavicka = struct.pack("c", str.encode("3")) + struct.pack("HHH", len(ini_msg), pocet, checksum)
+                    client_socket.sendto(hlavicka + message_to_send, server_address)
+
+                else:
+                    if (type == "1"):
+                        break;
+                    elif (type == "0"):
+                        ini_msg = "Initialization packet"
+                        message_to_send = str.encode(ini_msg)
+                        pocet = number_of_packets
+                        hlavicka = struct.pack("c", str.encode("3")) + struct.pack("HH", len(ini_msg), pocet)
+                        check = hlavicka + message_to_send
+                        checksum = binascii.crc_hqx(check, 0)
+                        hlavicka = struct.pack("c", str.encode("3")) + struct.pack("HHH", len(ini_msg), pocet, checksum)
+                        client_socket.sendto(hlavicka + message_to_send, server_address)
+
+
+
 
             poradie = 1
             message_to_send = msg[:fragment]
             message_to_send = str.encode(message_to_send)
             message = msg[fragment:]
             checksum = binascii.crc_hqx(message_to_send,0)
+            print(checksum)
             choiuce = random.choice(odds)
             if choiuce == 1:
                 checksum = checksum + random.randint(10,50)
 
-            hlavicka = struct.pack("c", str.encode("1")) + struct.pack("HHH", len(msg), poradie, checksum)
+            hlavicka = struct.pack("c", str.encode("3")) + struct.pack("HHH", len(msg), poradie, checksum)
             client_socket.sendto(hlavicka + message_to_send, server_address)
             if number_of_packets > 1 :
 
                 data, address = client_socket.recvfrom(1000)
-                typ,length,smt,smt2 = struct.unpack("cHHH", data)
+                typ = data[:1]
+                length,smt,smt2 = struct.unpack("HHH", data[1:7])
                 typ = typ.decode()
-                if typ == "2":
+                if typ == "0":
                     message_to_send = msg[:fragment]
-                elif typ == "3":
+                elif typ == "1":
                     message_to_send = message[:fragment]
                     message =message[fragment:]
                     poradie = poradie + 1
@@ -162,15 +194,16 @@ def client(client_socket, server_address):
                     if choiuce == 1:
                         checksum = checksum + random.randint(10, 50)
 
-                    hlavicka = struct.pack("c", str.encode("1")) + struct.pack("HHH", len(msg), poradie, checksum)
+                    hlavicka = struct.pack("c", str.encode("3")) + struct.pack("HHH", len(msg), poradie, checksum)
                     client_socket.sendto(hlavicka + message_to_send, server_address)
 
                     data, address = client_socket.recvfrom(1000)
-                    typ, length, smt, smt2 = struct.unpack("cHHH", data)
+                    typ = data[:1]
+                    length, smt, smt2 = struct.unpack("HHH", data[1:7])
                     typ = typ.decode()
-                    if typ =="2":           #poŠkodená
+                    if typ =="0":           #poŠkodená
                         message_to_send = message_to_send.decode()
-                    elif typ == "3":
+                    elif typ == "1":
                         message_to_send = message[:fragment]
                         message = message[fragment:]
                         poradie = poradie + 1
@@ -262,7 +295,8 @@ def client(client_socket, server_address):
 
 
 def server(server_socket, client_address):
-
+    global ini_packet
+    ini_packet = False
     print("0 - exit")
     print("1 - switch")
     print("2 - pokračuj ")
@@ -277,16 +311,54 @@ def server(server_socket, client_address):
 
         elif choice == "2":
             print("\nServer je pripravený prijmať dáta\n")
+            server_socket.settimeout(60)
 
             while True:
 
-                data = server_socket.recv(1500)
-                data = str(data.decode())
+                while True:
 
-                type = data[:1]  # typ správy ktorú server bude prijmať
+                    data = server_socket.recv(1500)
 
-                if type == "1":
-                    pocet = data[1:]  # pocet packetov ktoré prídu
+
+                    type = data[:1]  # typ správy ktorú server bude prijmať
+                    length,poradie,checksum = struct.unpack("HHH",data[1:7])
+                    type = type.decode()
+                    msg = data[7:]
+                    msg = msg.decode()
+                    message_to_send = str.encode(msg)
+                    hlavicka = struct.pack("c", str.encode(type)) + struct.pack("HH", len(msg), poradie)
+                    check = hlavicka + message_to_send
+                    real_checksum = binascii.crc_hqx(check,0)
+
+                    if real_checksum != checksum:
+                        print("PROBLEM")
+                        msg = "PROBLEM WITH PACKET"
+                        message_to_send = str.encode(msg)
+                        poradie_send = 0
+                        hlavicka = struct.pack("c", str.encode("0")) + struct.pack("HH", len(msg), poradie_send)
+                        check = hlavicka + message_to_send
+                        checksum = binascii.crc_hqx(check, 0)
+                        hlavicka = struct.pack("c", str.encode("0")) + struct.pack("HHH", len(msg), poradie_send, checksum)
+                        server_socket.sendto(hlavicka + message_to_send, client_address)
+                        continue;
+
+                    else:
+                        if type == "3" or type == "4":
+                            msg = "PACKET OK"
+                            message_to_send = str.encode(msg)
+                            poradie_send = 0
+                            hlavicka = struct.pack("c", str.encode("1")) + struct.pack("HH", len(msg), poradie_send)
+                            check = hlavicka + message_to_send
+                            checksum = binascii.crc_hqx(check, 0)
+                            hlavicka = struct.pack("c", str.encode("1")) + struct.pack("HHH", len(msg), poradie_send, checksum)
+                            server_socket.sendto(hlavicka + message_to_send, client_address)
+                            break
+                        elif type == "2":
+                            break
+
+
+                if type == "3":
+                    pocet = poradie  # pocet packetov ktoré prídu
 
                     print("Prichádzajúca správa pozostáva z " + str(pocet) + " packetov ")
 
@@ -294,13 +366,11 @@ def server(server_socket, client_address):
                     full_message = []
                     while True:
                         if (num_of_packets_recv == int(pocet)):
-                            print("FINITO")
-                            print(full_message)
                             full = ""
                             for frag in full_message:
                                 full= full + frag
-                            print(str(full))
                             print("Message:", ''.join(full_message))
+                            ini_packet = False
                             break
 
 
@@ -313,22 +383,22 @@ def server(server_socket, client_address):
                             full_message.append(recv_message.decode())
                             print(f"Packet number {poradie} was accepted")
                             num_of_packets_recv = num_of_packets_recv + 1
-                            hlavicka = struct.pack("c", str.encode("3")) + struct.pack("HHH", len(recv_message), poradie, real_checksum_of_recv_data)
-                            message_to_send = " "
+                            hlavicka = struct.pack("c", str.encode("1")) + struct.pack("HHH", len(recv_message), poradie, real_checksum_of_recv_data)
+                            message_to_send = "PACKET OK"
                             message_to_send = message_to_send.encode()
                             server_socket.sendto(hlavicka + message_to_send, client_address)
 
                         else:
                             print(f"Packet number {poradie} wasn't  accepted | Try Again")
-                            hlavicka = struct.pack("c", str.encode("2")) + struct.pack("HHH", len(recv_message), poradie, real_checksum_of_recv_data)
-                            message_to_send = " "
+                            hlavicka = struct.pack("c", str.encode("0")) + struct.pack("HHH", len(recv_message), poradie, real_checksum_of_recv_data)
+                            message_to_send = "PROBLEM WITH PACKET"
                             message_to_send = message_to_send.encode()
                             server_socket.sendto(hlavicka + message_to_send, client_address)
 
 
-                elif type == "2" :
+                elif type == "4" :
                     pocet = data[1:]  # pocet packetov ktoré prídu
-
+                    pocet = pocet.decode()
                     print("Prichádzajúci súbor pozostáva z " + str(pocet) + " packetov ")
 
                     num_of_packets_recv = 0
@@ -370,10 +440,11 @@ def server(server_socket, client_address):
                     break
 
 
-                elif type =="4":
+                elif type =="2":
                     server_socket.settimeout(60)
                     print("KEEP ALIVE PACKET WAS ACCEPTED")
                     break
+
 
 
 
