@@ -52,7 +52,8 @@ def udrzuj(client_socket,server_address):
 
     return
 
-
+def switch():
+    menu()
 
 
 def client(client_socket, server_address):
@@ -65,6 +66,7 @@ def client(client_socket, server_address):
         print("2 for file message")
         print("3 for Keep alive ON")
         print("4 for Keep alive OFF")
+        print("5 for switch role")
         choice = input()
 
         if choice == "0":
@@ -81,7 +83,9 @@ def client(client_socket, server_address):
         elif choice == "4":
             THREAD = False
 
-
+        elif choice == "5":
+            Thread = False
+            switch()
 
         elif choice == "1":
             THREAD = False
@@ -292,15 +296,14 @@ def client(client_socket, server_address):
                     break
 
 
-
-
 def server(server_socket, client_address):
     global ini_packet
     ini_packet = False
     print("0 - exit")
     print("1 - switch")
-    print("2 - pokračuj ")
-    choice = "2"
+    print("2 - continue")
+    #choice = "2"
+    choice = input()
 
     while True:
         if choice == "0":
@@ -371,7 +374,7 @@ def server(server_socket, client_address):
                                 full= full + frag
                             print("Message:", ''.join(full_message))
                             ini_packet = False
-                            break
+                            server(server_socket, client_address)
 
 
                         data, address = server_socket.recvfrom(64965)
@@ -394,6 +397,7 @@ def server(server_socket, client_address):
                             message_to_send = "PROBLEM WITH PACKET"
                             message_to_send = message_to_send.encode()
                             server_socket.sendto(hlavicka + message_to_send, client_address)
+                    break
 
 
                 elif type == "4" :
@@ -453,8 +457,7 @@ def server(server_socket, client_address):
 
         else:
             print("\nZadal si neplatnú možnosť !!!!\n")
-
-
+        break
 
 
 def client_start():
@@ -469,12 +472,37 @@ def client_start():
         port = input()
 
         server_address = (address, int(port))
+
         while True :
-            client_socket.sendto(str.encode("OK"), server_address)
-            client_socket.settimeout(60)
-            data, address = client_socket.recvfrom(1500)
-            data = data.decode()
-            if data == "OK":
+            start_msg = "Hello Server"
+            message_to_send = str.encode(start_msg)
+            pocet = 0
+            hlavicka = struct.pack("c", str.encode("6")) + struct.pack("HH", len(start_msg), pocet)
+            check = hlavicka + message_to_send
+            checksum = binascii.crc_hqx(check, 0)
+            hlavicka = struct.pack("c", str.encode("6")) + struct.pack("HHH", len(start_msg), pocet, checksum)
+
+            client_socket.sendto(hlavicka + message_to_send, server_address)
+            try:
+                data, address = client_socket.recvfrom(1500)
+            except:
+                print("Server sa nenašiel")
+                main()
+            type = data[:1]
+            length, poradie, checksum = struct.unpack("HHH", data[1:7])
+            type = type.decode()
+            msg = data[7:]
+            msg = msg.decode()
+            message_to_send = str.encode(msg)
+            hlavicka = struct.pack("c", str.encode(type)) + struct.pack("HH", len(msg), poradie)
+            check = hlavicka + message_to_send
+            real_checksum = binascii.crc_hqx(check, 0)
+            if real_checksum != checksum:
+                print("Spojenie nebolo nadviazané ERROR")
+                print("PROGRAM WILL SHUT DOWN IN 5 seconds")
+                time.sleep(5)
+                main()
+            if type == "6":
                 print("Pripojené k :", server_address)
                 client(client_socket, server_address)
 
@@ -488,11 +516,44 @@ def server_start():
 
     server_socket.bind(("127.0.0.1", port))
 
-    data, client_address = server_socket.recvfrom(1500)
-    server_socket.sendto(str.encode("OK"), client_address)
-    if (data.decode() == "OK"):
-        print("Pripojené k :", client_address)
-        server(server_socket, client_address)
+    server_socket.settimeout(60)
+    try:
+        data, client_address = server_socket.recvfrom(1500)
+
+        type = data[:1]  # typ správy ktorú server bude prijmať
+        length, poradie, checksum = struct.unpack("HHH", data[1:7])
+        type = type.decode()
+        msg = data[7:]
+        msg = msg.decode()
+        message_to_send = str.encode(msg)
+        hlavicka = struct.pack("c", str.encode(type)) + struct.pack("HH", len(msg), poradie)
+        check = hlavicka + message_to_send
+        real_checksum = binascii.crc_hqx(check, 0)
+        if real_checksum != checksum:
+            print("Spojenie nebolo nadviazané ERROR")
+            print("PROGRAM WILL SHUT DOWN IN 5 seconds")
+            time.sleep(5)
+            main()
+        else:
+            if (type == "6"):
+                start_msg = "Hello Client"
+                message_to_send = str.encode(start_msg)
+                pocet = 0
+                hlavicka = struct.pack("c", str.encode("6")) + struct.pack("HH", len(start_msg), pocet)
+                check = hlavicka + message_to_send
+                checksum = binascii.crc_hqx(check, 0)
+                hlavicka = struct.pack("c", str.encode("6")) + struct.pack("HHH", len(start_msg), pocet, checksum)
+                server_socket.sendto(hlavicka + message_to_send, client_address)
+                print("Pripojené k :", client_address)
+                server(server_socket, client_address)
+            else:
+                print("Spojenie nebolo nadviazané ERROR")
+                print("PROGRAM WILL SHUT DOWN IN 5 seconds")
+                time.sleep(5)
+                main()
+    except socket.timeout:
+        print("Timed out")
+        main()
 
 
 def menu():
