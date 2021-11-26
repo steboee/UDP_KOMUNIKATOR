@@ -315,140 +315,141 @@ def server(server_socket, client_address):
         elif choice == "2":
             print("\nServer je pripravený prijmať dáta\n")
             server_socket.settimeout(60)
-
-            while True:
-
+            try:
                 while True:
 
-                    data = server_socket.recv(1500)
+                    while True:
+
+                        data = server_socket.recv(1500)
 
 
-                    type = data[:1]  # typ správy ktorú server bude prijmať
-                    length,poradie,checksum = struct.unpack("HHH",data[1:7])
-                    type = type.decode()
-                    msg = data[7:]
-                    msg = msg.decode()
-                    message_to_send = str.encode(msg)
-                    hlavicka = struct.pack("c", str.encode(type)) + struct.pack("HH", len(msg), poradie)
-                    check = hlavicka + message_to_send
-                    real_checksum = binascii.crc_hqx(check,0)
-
-                    if real_checksum != checksum:
-                        print("PROBLEM")
-                        msg = "PROBLEM WITH PACKET"
+                        type = data[:1]  # typ správy ktorú server bude prijmať
+                        length,poradie,checksum = struct.unpack("HHH",data[1:7])
+                        type = type.decode()
+                        msg = data[7:]
+                        msg = msg.decode()
                         message_to_send = str.encode(msg)
-                        poradie_send = 0
-                        hlavicka = struct.pack("c", str.encode("0")) + struct.pack("HH", len(msg), poradie_send)
+                        hlavicka = struct.pack("c", str.encode(type)) + struct.pack("HH", len(msg), poradie)
                         check = hlavicka + message_to_send
-                        checksum = binascii.crc_hqx(check, 0)
-                        hlavicka = struct.pack("c", str.encode("0")) + struct.pack("HHH", len(msg), poradie_send, checksum)
-                        server_socket.sendto(hlavicka + message_to_send, client_address)
-                        continue;
+                        real_checksum = binascii.crc_hqx(check,0)
 
-                    else:
-                        if type == "3" or type == "4":
-                            msg = "PACKET OK"
+                        if real_checksum != checksum:
+                            print("PROBLEM")
+                            msg = "PROBLEM WITH PACKET"
                             message_to_send = str.encode(msg)
                             poradie_send = 0
-                            hlavicka = struct.pack("c", str.encode("1")) + struct.pack("HH", len(msg), poradie_send)
+                            hlavicka = struct.pack("c", str.encode("0")) + struct.pack("HH", len(msg), poradie_send)
                             check = hlavicka + message_to_send
                             checksum = binascii.crc_hqx(check, 0)
-                            hlavicka = struct.pack("c", str.encode("1")) + struct.pack("HHH", len(msg), poradie_send, checksum)
+                            hlavicka = struct.pack("c", str.encode("0")) + struct.pack("HHH", len(msg), poradie_send, checksum)
                             server_socket.sendto(hlavicka + message_to_send, client_address)
-                            break
-                        elif type == "2":
-                            break
-
-
-                if type == "3":
-                    pocet = poradie  # pocet packetov ktoré prídu
-
-                    print("Prichádzajúca správa pozostáva z " + str(pocet) + " packetov ")
-
-                    num_of_packets_recv = 0
-                    full_message = []
-                    while True:
-                        if (num_of_packets_recv == int(pocet)):
-                            full = ""
-                            for frag in full_message:
-                                full= full + frag
-                            print("Message:", ''.join(full_message))
-                            ini_packet = False
-                            server(server_socket, client_address)
-
-
-                        data, address = server_socket.recvfrom(64965)
-
-                        recv_message = data[7:]
-                        lenght, poradie, checksum = struct.unpack("HHH",data[1:7])
-                        real_checksum_of_recv_data = binascii.crc_hqx(recv_message,0)
-                        if (real_checksum_of_recv_data == checksum):
-                            full_message.append(recv_message.decode())
-                            print(f"Packet number {poradie} was accepted")
-                            num_of_packets_recv = num_of_packets_recv + 1
-                            hlavicka = struct.pack("c", str.encode("1")) + struct.pack("HHH", len(recv_message), poradie, real_checksum_of_recv_data)
-                            message_to_send = "PACKET OK"
-                            message_to_send = message_to_send.encode()
-                            server_socket.sendto(hlavicka + message_to_send, client_address)
+                            continue;
 
                         else:
-                            print(f"Packet number {poradie} wasn't  accepted | Try Again")
-                            hlavicka = struct.pack("c", str.encode("0")) + struct.pack("HHH", len(recv_message), poradie, real_checksum_of_recv_data)
-                            message_to_send = "PROBLEM WITH PACKET"
-                            message_to_send = message_to_send.encode()
-                            server_socket.sendto(hlavicka + message_to_send, client_address)
-                    break
+                            if type == "3" or type == "4":
+                                msg = "PACKET OK"
+                                message_to_send = str.encode(msg)
+                                poradie_send = 0
+                                hlavicka = struct.pack("c", str.encode("1")) + struct.pack("HH", len(msg), poradie_send)
+                                check = hlavicka + message_to_send
+                                checksum = binascii.crc_hqx(check, 0)
+                                hlavicka = struct.pack("c", str.encode("1")) + struct.pack("HHH", len(msg), poradie_send, checksum)
+                                server_socket.sendto(hlavicka + message_to_send, client_address)
+                                break
+                            elif type == "2":
+                                break
 
 
-                elif type == "4" :
-                    pocet = data[1:]  # pocet packetov ktoré prídu
-                    pocet = pocet.decode()
-                    print("Prichádzajúci súbor pozostáva z " + str(pocet) + " packetov ")
+                    if type == "3":
+                        pocet = poradie  # pocet packetov ktoré prídu
 
-                    num_of_packets_recv = 0
-                    full_message = []
-                    while True:
-                        if (num_of_packets_recv == int(pocet)):
-                            file_name = "image_recieved.jpg"
-                            file = open(file_name, "wb")
+                        print("Prichádzajúca správa pozostáva z " + str(pocet) + " packetov ")
 
-                            for frag in full_message:
-                                file.write(frag)
-                            file.close()
-                            size = os.path.getsize(file_name)
-                            print("Name:", file_name, "Size:", size, "B")
-                            print("Absolute path:", os.path.abspath(file_name))
+                        num_of_packets_recv = 0
+                        full_message = []
+                        while True:
+                            if (num_of_packets_recv == int(pocet)):
+                                full = ""
+                                for frag in full_message:
+                                    full= full + frag
+                                print("Message:", ''.join(full_message))
+                                ini_packet = False
+                                server(server_socket, client_address)
 
 
-                        data, address = server_socket.recvfrom(64965)
+                            data, address = server_socket.recvfrom(64965)
 
-                        recv_message = data[7:]
-                        lenght, poradie, checksum = struct.unpack("HHH", data[1:7])
-                        real_checksum_of_recv_data = binascii.crc_hqx(recv_message, 0)
-                        if (real_checksum_of_recv_data == checksum):
-                            full_message.append(recv_message.decode())
-                            print(f"Packet number {poradie} was accepted")
-                            num_of_packets_recv = num_of_packets_recv + 1
-                            hlavicka = struct.pack("c", str.encode("3")) + struct.pack("HHH", len(recv_message), poradie, real_checksum_of_recv_data)
-                            message_to_send = " "
-                            message_to_send = message_to_send.encode()
-                            server_socket.sendto(hlavicka + message_to_send, client_address)
+                            recv_message = data[7:]
+                            lenght, poradie, checksum = struct.unpack("HHH",data[1:7])
+                            real_checksum_of_recv_data = binascii.crc_hqx(recv_message,0)
+                            if (real_checksum_of_recv_data == checksum):
+                                full_message.append(recv_message.decode())
+                                print(f"Packet number {poradie} was accepted")
+                                num_of_packets_recv = num_of_packets_recv + 1
+                                hlavicka = struct.pack("c", str.encode("1")) + struct.pack("HHH", len(recv_message), poradie, real_checksum_of_recv_data)
+                                message_to_send = "PACKET OK"
+                                message_to_send = message_to_send.encode()
+                                server_socket.sendto(hlavicka + message_to_send, client_address)
 
-                        else:
-                            print(f"Packet number {poradie} wasn't  accepted | Try Again")
-                            hlavicka = struct.pack("c", str.encode("2")) + struct.pack("HHH", len(recv_message), poradie, real_checksum_of_recv_data)
-                            message_to_send = " "
-                            message_to_send = message_to_send.encode()
-                            server_socket.sendto(hlavicka + message_to_send, client_address)
+                            else:
+                                print(f"Packet number {poradie} wasn't  accepted | Try Again")
+                                hlavicka = struct.pack("c", str.encode("0")) + struct.pack("HHH", len(recv_message), poradie, real_checksum_of_recv_data)
+                                message_to_send = "PROBLEM WITH PACKET"
+                                message_to_send = message_to_send.encode()
+                                server_socket.sendto(hlavicka + message_to_send, client_address)
+                        break
 
-                    break
+
+                    elif type == "4" :
+                        pocet = data[1:]  # pocet packetov ktoré prídu
+                        pocet = pocet.decode()
+                        print("Prichádzajúci súbor pozostáva z " + str(pocet) + " packetov ")
+
+                        num_of_packets_recv = 0
+                        full_message = []
+                        while True:
+                            if (num_of_packets_recv == int(pocet)):
+                                file_name = "image_recieved.jpg"
+                                file = open(file_name, "wb")
+
+                                for frag in full_message:
+                                    file.write(frag)
+                                file.close()
+                                size = os.path.getsize(file_name)
+                                print("Name:", file_name, "Size:", size, "B")
+                                print("Absolute path:", os.path.abspath(file_name))
 
 
-                elif type =="2":
-                    server_socket.settimeout(60)
-                    print("KEEP ALIVE PACKET WAS ACCEPTED")
-                    break
+                            data, address = server_socket.recvfrom(64965)
 
+                            recv_message = data[7:]
+                            lenght, poradie, checksum = struct.unpack("HHH", data[1:7])
+                            real_checksum_of_recv_data = binascii.crc_hqx(recv_message, 0)
+                            if (real_checksum_of_recv_data == checksum):
+                                full_message.append(recv_message.decode())
+                                print(f"Packet number {poradie} was accepted")
+                                num_of_packets_recv = num_of_packets_recv + 1
+                                hlavicka = struct.pack("c", str.encode("3")) + struct.pack("HHH", len(recv_message), poradie, real_checksum_of_recv_data)
+                                message_to_send = " "
+                                message_to_send = message_to_send.encode()
+                                server_socket.sendto(hlavicka + message_to_send, client_address)
+
+                            else:
+                                print(f"Packet number {poradie} wasn't  accepted | Try Again")
+                                hlavicka = struct.pack("c", str.encode("2")) + struct.pack("HHH", len(recv_message), poradie, real_checksum_of_recv_data)
+                                message_to_send = " "
+                                message_to_send = message_to_send.encode()
+                                server_socket.sendto(hlavicka + message_to_send, client_address)
+
+                        break
+
+
+                    elif type =="2":
+                        print("KEEP ALIVE PACKET WAS ACCEPTED")
+                        break
+            except socket.timeout:
+                print("Spojenie bolo zrušené Klient neposlal žiadne packet po dobu 60s")
+                server_start()
 
 
 
@@ -457,7 +458,6 @@ def server(server_socket, client_address):
 
         else:
             print("\nZadal si neplatnú možnosť !!!!\n")
-        break
 
 
 def client_start():
