@@ -218,7 +218,7 @@ def client(client_socket, server_address):
             THREAD = False
 
             print("Obrázok na poslanie: ")
-            image = "image_to_send.jpg"
+            image = "send_file.mov"
             size = os.path.getsize(image)
             print("Veľkosť súboru je " + str(size) + " B")
             print("Veľkosť fragmentu: ")
@@ -446,18 +446,16 @@ def server(server_socket, client_address):
                         full_message = []
                         while True:
                             if (pocet == int(num_of_packets_recv)):
-                                file_name = "file_rcv.jpg"
+                                file_name = "rcv_file.mov"
                                 file = open(file_name, "wb")
-                                i = 1
                                 for frag in full_message:
-                                    print(i)
-                                    i = i + 1
+
                                     file.write(frag)
                                 file.close()
                                 size = os.path.getsize(file_name)
                                 print("Name:", file_name, "Size:", size, "B")
                                 print("Absolute path:", os.path.abspath(file_name))
-                                break
+                                server(server_socket, client_address)
 
 
                             data, address = server_socket.recvfrom(64965)
