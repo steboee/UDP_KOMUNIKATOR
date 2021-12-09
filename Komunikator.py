@@ -99,12 +99,14 @@ def client(client_socket, server_address):
             print("Veľkosť fragmentu: ")
             fragment = int(input())
 
-            while fragment >= 64965 or fragment <= 0:
-                print("Maximum is 64965 B")
+            while fragment > 1472 or fragment <= 0:
+                print("Maximum is 1472 B an minimum  1 B")
                 print("Veľkosť fragmentu: ")
                 fragment = int(input())
-            print("% šanca na poškodený packet : (1% -> 100%(neodporúča sa :D) ")
-            error = int(input())
+
+            if implementation == 0:
+                print("% šanca na poškodený packet : (1 <-> 100) ")
+                error = int(input())
 
             odds = [0]*100
             for i in range(error):
@@ -182,7 +184,8 @@ def client(client_socket, server_address):
 
 
 
-
+                if poradie > pocet:
+                    continue
                 while True :
                     message_to_send = str.encode(message_to_send)
                     checksum = binascii.crc_hqx(message_to_send,0)
