@@ -572,7 +572,6 @@ def client_start():
         print("Port to send: ")
         port = input()
 
-        input("")
         server_address = (address, int(port))
 
         while True :
