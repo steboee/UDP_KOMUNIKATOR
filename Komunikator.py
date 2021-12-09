@@ -66,7 +66,7 @@ def client(client_socket, server_address):
         print("4 for Keep alive OFF")
         print("5 for switch role")
         choice = input()
-        if (time.time() - t > 10 and THREAD == False):
+        if (time.time() - t > 60 and THREAD == False):
             print("Due to inactivity you have been disconnected from the server")
             client_socket.close()
             client_start()
@@ -495,19 +495,21 @@ def server(server_socket, client_address):
                         full_message = []
                         while True:
                             if (pocet == int(num_of_packets_recv)):
-
-                                file_name = "file_rcv"+"."+file[1]
-                                file = open(file_name, "wb")
+                                f = input("[:SERVER:] -- Názov prijatého súboru ? (bez prípony)  :   ")
+                                file_name = f+"."+file[1]
+                                path = input("[:SERVER:] -- Kde uložiť súbor ? ( C:/Users/ACER/Počítač/KOMUNIKATOR   :  " )
+                                complete = os.path.join(path,file_name)
+                                file = open(complete, "wb")
                                 for frag in full_message:
                                     file.write(frag)
                                 file.close()
-                                size = os.path.getsize(file_name)
-                                print("Name:", file_name, "Size:", size, "B")
-                                print("Absolute path:", os.path.abspath(file_name))
+                                size = os.path.getsize(complete)
+                                print("[:SERVER:] -- Názov prijatého súboru :", file_name, "Veľkosť:", size, "B")
+                                print("[:SERVER:] -- Absolútna cesta:", os.path.abspath(complete))
                                 uspesnost = len(succes) / all
                                 corr = all - len(succes)
-                                print("ÚSPEŠNOSŤ PRENOSU BOLA : " + str(round((uspesnost*100),2)) + " %")
-                                print("POČET CORRUPTED PACKETOV : " + str(corr))
+                                print("[:SERVER:] -- Úspešnosť prenosu bola : " + str(round((uspesnost*100),2)) + " %")
+                                print("[:SERVER:] -- Počet Poškodených packetov : " + str(corr))
                                 server(server_socket, client_address)
 
 
@@ -545,7 +547,7 @@ def server(server_socket, client_address):
                         server_socket.settimeout(60)
                         server(server_socket,client_address)
             except socket.timeout:
-                print("Spojenie bolo zrušené Klient neposlal žiadne packet po dobu 60s")
+                print("Spojenie bolo zrušené Klient neposlal žiaden packet po dobu 60s")
                 server_socket.close()
                 server_start()
 
@@ -570,6 +572,7 @@ def client_start():
         print("Port to send: ")
         port = input()
 
+        input("")
         server_address = (address, int(port))
 
         while True :
