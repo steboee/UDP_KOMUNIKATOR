@@ -104,9 +104,8 @@ def client(client_socket, server_address):
                 print("Veľkosť fragmentu: ")
                 fragment = int(input())
 
-            if implementation == 0:
-                print("% šanca na poškodený packet : (1 <-> 100) ")
-                error = int(input())
+            print("% šanca na poškodený packet : (1 <-> 100) ")
+            error = int(input())
 
             odds = [0]*100
             for i in range(error):
@@ -364,10 +363,6 @@ def server(server_socket, client_address):
     print("0 - exit")
     print("1 - switch")
     print("2 - continue")
-    #THREAD2 = True
-    #thread2 = threading.Thread(target=server_keep, args=(server_socket, client_address))
-    #thread2.daemon = False
-    #thread2.start()
     #choice = "2"
     choice = input()
 
@@ -455,7 +450,7 @@ def server(server_socket, client_address):
                                 ini_packet = False
                                 uspesnost = len(succes) / all
                                 corr = all - len(succes)
-                                print("ÚSPEŠNOSŤ PRENOSU BOLA : " + str(uspesnost))
+                                print("ÚSPEŠNOSŤ PRENOSU BOLA : " + str(round((uspesnost*100),2)) + " %")
                                 print("POČET CORRUPTED PACKETOV : " + str(corr))
                                 server(server_socket, client_address)
 
