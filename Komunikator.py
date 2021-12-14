@@ -99,8 +99,8 @@ def client(client_socket, server_address):
             print("Veľkosť fragmentu: ")
             fragment = int(input())
 
-            while fragment > 1472 or fragment <= 0:
-                print("Maximum is 1472 B an minimum  1 B")
+            while fragment > 1463 or fragment <= 0:
+                print("Maximum is 1463 B an minimum  1 B")
                 print("Veľkosť fragmentu: ")
                 fragment = int(input())
 
@@ -116,6 +116,10 @@ def client(client_socket, server_address):
             print(number_of_packets,end="")
             print(" packetov bude odoslaných ")
 
+
+            if implementation ==1:
+                rezia_hlavicka = 0
+
             ini_msg = "Initialization packet1"
             message_to_send = str.encode(ini_msg)
             pocet = number_of_packets
@@ -124,6 +128,8 @@ def client(client_socket, server_address):
             checksum = binascii.crc_hqx(check, 0)
             hlavicka = struct.pack("c", str.encode("5")) + struct.pack("H", len(ini_msg)) + struct.pack("I", pocet) + struct.pack("H", checksum)
             client_socket.sendto(hlavicka + message_to_send, server_address)
+            rezia_hlavicka = rezia_hlavicka + 9 # Hlavička má 9B
+            print("Rezia : " + str(rezia_hlavicka))
 
             while True:
 
@@ -149,6 +155,8 @@ def client(client_socket, server_address):
                     checksum = binascii.crc_hqx(check, 0)
                     hlavicka = struct.pack("c", str.encode("5")) + struct.pack("H", len(ini_msg)) + struct.pack("I", pocet) + struct.pack("H", checksum)
                     client_socket.sendto(hlavicka + message_to_send, server_address)
+                    rezia_hlavicka = rezia_hlavicka + 9  # Hlavička má 9B
+                    print("Rezia : " + str(rezia_hlavicka))
 
 
 
@@ -167,6 +175,9 @@ def client(client_socket, server_address):
 
             hlavicka = struct.pack("c", str.encode("3")) + struct.pack("H", len(msg)) + struct.pack("I", poradie) + struct.pack("H", checksum)
             client_socket.sendto(hlavicka + message_to_send, server_address)
+            rezia_hlavicka = rezia_hlavicka + 9  # Hlavička má 9B
+            print("Rezia : " + str(rezia_hlavicka))
+
             if number_of_packets > 0 :
 
                 data, address = client_socket.recvfrom(1000)
@@ -199,6 +210,9 @@ def client(client_socket, server_address):
                     hlavicka = struct.pack("c", str.encode("3")) + struct.pack("H", len(msg)) + struct.pack("I", poradie) + struct.pack("H", checksum)
 
                     client_socket.sendto(hlavicka + message_to_send, server_address)
+                    rezia_hlavicka = rezia_hlavicka + 9  # Hlavička má 9B
+                    print("Rezia : " + str(rezia_hlavicka))
+
 
                     data, address = client_socket.recvfrom(1000)
                     typ = data[:1]
@@ -213,6 +227,7 @@ def client(client_socket, server_address):
 
                     if (poradie-1 == int(number_of_packets)):
                         break
+                print("Réžia hlavičky je v tomto prenose bola : " + str(rezia_hlavicka))
 
 
         elif choice == "2":
@@ -225,8 +240,8 @@ def client(client_socket, server_address):
             print("Veľkosť fragmentu: ")
             fragment = int(input())
 
-            while fragment > 1472 or fragment <= 0:
-                print("Maximum is 1472 B")
+            while fragment > 1463 or fragment <= 0:
+                print("Maximum is 1463 B")
                 print("Veľkosť fragmentu: ")
                 fragment = int(input())
             print("% šanca na poškodený packet : (1% -> 100%(neodporúča sa :D) ")
@@ -241,6 +256,10 @@ def client(client_socket, server_address):
             print(number_of_packets, end="")
             print(" packetov bude odoslaných ")
 
+
+            if implementation ==1:
+                rezia_hlavicka = 0
+
             ini_msg = image
             message_to_send = str.encode(ini_msg)
             pocet = number_of_packets
@@ -250,6 +269,8 @@ def client(client_socket, server_address):
             hlavicka = struct.pack("c", str.encode("5")) + struct.pack("H", len(ini_msg)) + struct.pack("I", pocet) + struct.pack("H", checksum)
 
             client_socket.sendto(hlavicka + message_to_send, server_address)
+            rezia_hlavicka = rezia_hlavicka + 9 #Hlavička má 9B
+            print("Rezia : " + str(rezia_hlavicka))
 
             while True:
 
@@ -278,6 +299,8 @@ def client(client_socket, server_address):
                     hlavicka = struct.pack("c", str.encode("5")) + struct.pack("H", len(ini_msg)) + struct.pack("I", pocet) + struct.pack("H", checksum)
 
                     client_socket.sendto(hlavicka + message_to_send, server_address)
+                    rezia_hlavicka = rezia_hlavicka + 9  # Hlavička má 9B
+                    print("Rezia : " + str(rezia_hlavicka))
 
             poradie = 1
 
@@ -296,6 +319,8 @@ def client(client_socket, server_address):
             hlavicka = struct.pack("c", str.encode("4")) + struct.pack("H", len(message_to_send)) + struct.pack("I", poradie) + struct.pack("H", checksum)
 
             client_socket.sendto(hlavicka + message_to_send, server_address)
+            rezia_hlavicka = rezia_hlavicka + 9  # Hlavička má 9B
+            print("Rezia : " + str(rezia_hlavicka))
 
             data, address = client_socket.recvfrom(1000)
             typ = data[:1]
@@ -321,6 +346,8 @@ def client(client_socket, server_address):
                 hlavicka = struct.pack("c", str.encode("4")) + struct.pack("H", len(message_to_send)) + struct.pack("I", poradie) + struct.pack("H", checksum)
 
                 client_socket.sendto(hlavicka + message_to_send, server_address)
+                rezia_hlavicka = rezia_hlavicka + 9  # Hlavička má 9B
+                print("Rezia : " + str(rezia_hlavicka))
 
                 data, address = client_socket.recvfrom(1000)
                 typ = data[:1]
@@ -335,6 +362,7 @@ def client(client_socket, server_address):
 
                 if (poradie-1 == int(number_of_packets)):
                     break
+            print("Réžia hlavičky je v tomto prenose bola : " + str(rezia_hlavicka))
         else:
             print("\nZadal si neplatnú možnosť !!!!\n")
 
@@ -560,6 +588,7 @@ def server(server_socket, client_address):
 
 
 def client_start():
+    global implementation
     while True:
 
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -569,6 +598,9 @@ def client_start():
 
         print("Port to send: ")
         port = input()
+
+        implementation = int(input("Implementacia ? (1-yes/0-no) "))
+
 
         server_address = (address, int(port))
 
